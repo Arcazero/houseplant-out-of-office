@@ -26,9 +26,23 @@ LINE = (
     "returning the favour \u2014 your email will be read in spring."
 )
 
-assert 1 <= len(LINE) <= 120, f"line is {len(LINE)} characters"
-assert LINE.strip(), "line must not be only whitespace"
-assert "\n" not in LINE.strip(), "line must be a single block of text"
+def validate_line(line: str) -> None:
+    """Validate the entry line before anything is written.
+
+    The judged entry must be a single block of text, 1-120 characters,
+    non-whitespace, and valid UTF-8 (the grader reads it back as UTF-8).
+    """
+    if not 1 <= len(line) <= 120:
+        raise ValueError(f"line is {len(line)} characters, must be 1-120")
+    if not line.strip():
+        raise ValueError("line must not be only whitespace")
+    if "\n" in line or "\r" in line:
+        raise ValueError("line must be a single block of text")
+    # Encoding round-trip proves the line is valid UTF-8 before writing.
+    line.encode("utf-8").decode("utf-8")
+
+
+validate_line(LINE)
 
 
 def main() -> None:
@@ -38,8 +52,12 @@ def main() -> None:
     with open(entry_path, "w", encoding="utf-8") as f:
         f.write(LINE + "\n")
     # Read back and verify: the file must contain exactly the line + newline.
-    with open(entry_path, "r", encoding="utf-8") as f:
-        written = f.read()
+    # Read raw bytes so a UTF-8 decoding failure is caught here, not by
+    # the grader, and re-validate the recovered line before comparing.
+    with open(entry_path, "rb") as f:
+        raw = f.read()
+    written = raw.decode("utf-8")
+    validate_line(written.rstrip("\n"))
     assert written == LINE + "\n", (
         f"entry.txt mismatch: expected {len(LINE) + 1} chars, "
         f"got {len(written)} chars"
